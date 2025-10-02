@@ -67,7 +67,7 @@ export default function Home() {
                     <p className="card-text">
                       Smarter learning. DUBE adapts lessons to your style – visual, auditory, or textual – so learning feels natural.
                     </p>
-                    <div className="fw-bold text-end">→</div>
+                    <div className="fw-bold text-end fs-3">→</div>
                   </div>
                 </div>
               </Link>
@@ -78,11 +78,11 @@ export default function Home() {
                 <div className="card shadow border-0 h-100">
                   <div className="card-body bg-primary text-white rounded">
                     <h5 className="card-title">🧑‍🏫 For Educators</h5>
-                    <img src={ProfPhoto} alt="Educators illustration" className="img-fluid my-2" />
+                    <img src={ProfPhoto} width="300" height="100" alt="Educators illustration" className="img-fluid my-2" />
                     <p className="card-text">
                       Smarter teaching. Upload once, and DUBE creates lessons in multiple formats while tracking student progress.
                     </p>
-                    <div className="fw-bold text-end">→</div>
+                    <div className="fw-bold text-end fs-3">→</div>
                   </div>
                 </div>
               </Link>

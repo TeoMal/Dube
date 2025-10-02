@@ -14,6 +14,7 @@ import Help from "./pages/Help";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import MyCourses from "./pages/MyCourses";
+import Footer from "./components/Footer";
 
 export default function App() {
   return (
@@ -31,10 +32,11 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/my-courses" element={<MyCourses />} />
+
           {/* <Route path="/courses" element={<Courses />} /> */}
         </Routes>
       </Router>
-
+      <Footer />
     </AuthProvider>
     
   );

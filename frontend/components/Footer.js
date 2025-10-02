@@ -1,15 +1,17 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function Footer() {
   return (
-    <View style={styles.footer}>
-      <Text style={styles.text}>© 2025 My Learning App</Text>
-    </View>
+    <footer className="bg-light text-center border-top fixed-bottom">
+      <div
+        className="container d-flex justify-content-center align-items-center"
+        style={{ minHeight: "40px" }}
+      >
+        <span className="text-muted">
+          © {new Date().getFullYear()} DUBE. All rights reserved.
+        </span>
+      </div>
+    </footer>
   );
 }
-
-const styles = StyleSheet.create({
-  footer: { padding: 10, backgroundColor: "#4A90E2" },
-  text: { fontSize: 14, color: "white", textAlign: "center" },
-});
