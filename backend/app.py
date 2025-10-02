@@ -8,6 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 MEDIA_ROOT = os.path.join(app.root_path, "media")
+ICONS_ROOT = os.path.join(app.root_path, "icons")
 
 # ----- USER PROFILES -----
 ALL_TYPES = ["reading", "video", "graph", "sound"]
@@ -17,10 +18,42 @@ def make_default_user():
     return {
         "probs": {t: 1.0 / n for t in ALL_TYPES},
         "wrong_counts": {t: 0 for t in ALL_TYPES},
-        "history": []
+        "history": [],
+        "completed_chapters": {}  # {"HISTORY": ["chapter1", "chapter2"], "PHYSICS": []}
     }
 
 user_profiles = {"user1": make_default_user()}
+
+
+# ----- COURSE METADATA -----
+COURSE_INFO = {
+    "HISTORY": {
+        "name": "Ιστορία της Ευρώπης",
+        "logo": "history_logo.png",
+        "description": "Εξερευνήστε τα σημαντικότερα γεγονότα που διαμόρφωσαν την Ευρώπη από την Αναγέννηση έως σήμερα."
+    },
+    "PHYSICS": {
+        "name": "Εισαγωγή στη Φυσική",
+        "logo": "physics_logo.png",
+        "description": "Μάθετε τις θεμελιώδεις αρχές της φυσικής μέσα από διαδραστικά μαθήματα και πειράματα."
+    }
+}
+
+CHAPTER_NAMES = {
+    "HISTORY": {
+        "chapter1": "Αναγέννηση και Μεσαίωνας",
+        "chapter2": "Γαλλική Επανάσταση",
+        "chapter3": "Ευρώπη τον 19ο αιώνα",
+        "chapter4": "Σύγχρονη Ευρώπη"
+    },
+    "PHYSICS": {
+        "chapter1": "Κίνημα",
+        "chapter2": "Δύναμη και Πίεση",
+        "chapter3": "Ενέργεια και Θερμότητα",
+    }
+}
+
+MEDIA_DIR = os.path.join(app.root_path, "media")
 
 
 # ----- HELPERS -----
@@ -48,34 +81,74 @@ def load_questions(course, chapter):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def calculate_completion_percentage(user, course_key):
+    """Calculate percentage of completed chapters for a course"""
+    if user not in user_profiles:
+        return 0
+    
+    completed = user_profiles[user]["completed_chapters"].get(course_key, [])
+    total_chapters = len(CHAPTER_NAMES.get(course_key, {}))
+    
+    if total_chapters == 0:
+        return 0
+    
+    return round((len(completed) / total_chapters) * 100, 1)
+
+def calculate_accuracy_stats(user):
+    """Calculate overall and per-type accuracy statistics"""
+    if user not in user_profiles:
+        return {
+            "overall_accuracy": 0,
+            "total_questions": 0,
+            "correct_answers": 0,
+            "by_type": {t: {"correct": 0, "total": 0, "accuracy": 0} for t in ALL_TYPES}
+        }
+    
+    history = user_profiles[user]["history"]
+    
+    if not history:
+        return {
+            "overall_accuracy": 0,
+            "total_questions": 0,
+            "correct_answers": 0,
+            "by_type": {t: {"correct": 0, "total": 0, "accuracy": 0} for t in ALL_TYPES}
+        }
+    
+    total_questions = len(history)
+    correct_answers = sum(1 for entry in history if entry["correct"])
+    overall_accuracy = round((correct_answers / total_questions) * 100, 1)
+    
+    by_type = {t: {"correct": 0, "total": 0, "accuracy": 0} for t in ALL_TYPES}
+    
+    for entry in history:
+        q_type = entry["q_type"]
+        if q_type in by_type:
+            by_type[q_type]["total"] += 1
+            if entry["correct"]:
+                by_type[q_type]["correct"] += 1
+    
+    for q_type in by_type:
+        if by_type[q_type]["total"] > 0:
+            accuracy = (by_type[q_type]["correct"] / by_type[q_type]["total"]) * 100
+            by_type[q_type]["accuracy"] = round(accuracy, 1)
+    
+    return {
+        "overall_accuracy": overall_accuracy,
+        "total_questions": total_questions,
+        "correct_answers": correct_answers,
+        "by_type": by_type
+    }
+
 
 # ----- ROUTES -----
-# --- Chapter name mappings per course ---
-COURSE_NAMES = {
-    "HISTORY": "Ιστορία της Ευρώπης",
-    "PHYSICS": "Εισαγωγή στη Φυσική"
-}
-
-CHAPTER_NAMES = {
-    "HISTORY": {
-        "chapter1": "Αναγέννηση και Μεσαίωνας",
-        "chapter2": "Γαλλική Επανάσταση",
-        "chapter3": "Ευρώπη τον 19ο αιώνα",
-        "chapter4": "Σύγχρονη Ευρώπη"
-    },
-    "PHYSICS": {
-        "chapter1": "Κινήση",
-        "chapter2": "Δύναμη και Πίεση",
-        "chapter3": "Ενέργεια και Θερμότητα",
-    }
-}
-
-MEDIA_DIR = os.path.join(app.root_path, "media")
-
-
 @app.route("/get_courses", methods=["GET"])
 def get_courses():
-    """Return list of available courses (friendly names)."""
+    """Return list of available courses with metadata and completion percentage."""
+    user = request.args.get("user", "user1")
+    
+    if user not in user_profiles:
+        user_profiles[user] = make_default_user()
+    
     if not os.path.exists(MEDIA_DIR):
         return jsonify([])
 
@@ -84,24 +157,40 @@ def get_courses():
         if os.path.isdir(os.path.join(MEDIA_DIR, name))
     ]
 
-    courses = [COURSE_NAMES.get(key, key) for key in course_keys]
+    courses = []
+    for key in course_keys:
+        if key in COURSE_INFO:
+            completion = calculate_completion_percentage(user, key)
+            courses.append({
+                "id": key,
+                "name": COURSE_INFO[key]["name"],
+                "logo_url": f"http://127.0.0.1:5000/icons/{COURSE_INFO[key]['logo']}",
+                "description": COURSE_INFO[key]["description"],
+                "completion_percentage": completion
+            })
+    
     return jsonify(courses)
 
 
 @app.route("/get_chapters", methods=["GET"])
 def get_chapters():
     """
-    Example: /get_chapters?course=History of Europe
-    Returns friendly chapter names.
+    Example: /get_chapters?course=Ιστορία της Ευρώπης&user=user1
+    Returns friendly chapter names with completion status.
     """
     course_name = request.args.get("course")
+    user = request.args.get("user", "user1")
+    
     if not course_name:
         return jsonify({"error": "Missing course"}), 400
 
+    if user not in user_profiles:
+        user_profiles[user] = make_default_user()
+
     # reverse map: friendly course name -> folder key
     folder_key = None
-    for k, v in COURSE_NAMES.items():
-        if v == course_name:
+    for k, v in COURSE_INFO.items():
+        if v["name"] == course_name:
             folder_key = k
             break
 
@@ -117,8 +206,18 @@ def get_chapters():
         if os.path.isdir(os.path.join(course_path, name))
     ]
 
-    chapters = [CHAPTER_NAMES.get(folder_key, {}).get(ch, ch) for ch in chapter_keys]
+    completed = user_profiles[user]["completed_chapters"].get(folder_key, [])
+    
+    chapters = []
+    for ch in chapter_keys:
+        chapters.append({
+            "id": ch,
+            "name": CHAPTER_NAMES.get(folder_key, {}).get(ch, ch),
+            "completed": ch in completed
+        })
+    
     return jsonify(chapters)
+
 
 @app.route("/get_question", methods=["GET"])
 def get_question():
@@ -175,7 +274,9 @@ def check_answer():
         "qid": qid,
         "chosen_answer": chosen_answer,
         "correct": correct,
-        "q_type": q_type
+        "q_type": q_type,
+        "course": course,
+        "chapter": chapter
     }
     user_profiles[user]["history"].append(entry)
 
@@ -192,6 +293,65 @@ def check_answer():
         "correct": correct,
         "correct_answer": question["correct_answer"],
         "new_profile": user_profiles[user]["probs"]
+    })
+
+
+@app.route("/mark_chapter_complete", methods=["POST"])
+def mark_chapter_complete():
+    """Mark a chapter as completed for a user"""
+    data = request.get_json()
+    user = data.get("user", "user1")
+    course = data.get("course")
+    chapter = data.get("chapter")
+    
+    if not course or not chapter:
+        return jsonify({"error": "Missing course or chapter"}), 400
+    
+    if user not in user_profiles:
+        user_profiles[user] = make_default_user()
+    
+    if course not in user_profiles[user]["completed_chapters"]:
+        user_profiles[user]["completed_chapters"][course] = []
+    
+    if chapter not in user_profiles[user]["completed_chapters"][course]:
+        user_profiles[user]["completed_chapters"][course].append(chapter)
+    
+    completion = calculate_completion_percentage(user, course)
+    
+    return jsonify({
+        "status": "success",
+        "completed_chapters": user_profiles[user]["completed_chapters"][course],
+        "completion_percentage": completion
+    })
+
+
+@app.route("/get_user_stats", methods=["GET"])
+def get_user_stats():
+    """Get comprehensive user statistics"""
+    user = request.args.get("user", "user1")
+    
+    if user not in user_profiles:
+        user_profiles[user] = make_default_user()
+    
+    profile = user_profiles[user]
+    accuracy_stats = calculate_accuracy_stats(user)
+    
+    # Calculate completion stats per course
+    course_completion = {}
+    for course_key in COURSE_INFO.keys():
+        course_completion[course_key] = {
+            "name": COURSE_INFO[course_key]["name"],
+            "completion_percentage": calculate_completion_percentage(user, course_key),
+            "completed_chapters": profile["completed_chapters"].get(course_key, []),
+            "total_chapters": len(CHAPTER_NAMES.get(course_key, {}))
+        }
+    
+    return jsonify({
+        "user": user,
+        "learning_preferences": profile["probs"],
+        "accuracy_stats": accuracy_stats,
+        "course_completion": course_completion,
+        "total_questions_answered": len(profile["history"])
     })
 
 
@@ -224,6 +384,11 @@ def serve_media(course, chapter, filename):
     return send_from_directory(
         os.path.join(MEDIA_ROOT, course.upper(), chapter), filename
     )
+
+
+@app.route("/icons/<path:filename>")
+def serve_icon(filename):
+    return send_from_directory(ICONS_ROOT, filename)
 
 
 if __name__ == "__main__":
