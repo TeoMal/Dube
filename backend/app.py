@@ -50,31 +50,75 @@ def load_questions(course, chapter):
 
 
 # ----- ROUTES -----
+# --- Chapter name mappings per course ---
+COURSE_NAMES = {
+    "HISTORY": "Ιστορία της Ευρώπης",
+    "PHYSICS": "Εισαγωγή στη Φυσική"
+}
+
+CHAPTER_NAMES = {
+    "HISTORY": {
+        "chapter1": "Αναγέννηση και Μεσαίωνας",
+        "chapter2": "Γαλλική Επανάσταση",
+        "chapter3": "Ευρώπη τον 19ο αιώνα",
+        "chapter4": "Σύγχρονη Ευρώπη"
+    },
+    "PHYSICS": {
+        "chapter1": "Κινήση",
+        "chapter2": "Δύναμη και Πίεση",
+        "chapter3": "Ενέργεια και Θερμότητα",
+    }
+}
+
+MEDIA_DIR = os.path.join(app.root_path, "media")
+
+
 @app.route("/get_courses", methods=["GET"])
 def get_courses():
-    courses = [
-        d for d in os.listdir(MEDIA_ROOT)
-        if os.path.isdir(os.path.join(MEDIA_ROOT, d))
+    """Return list of available courses (friendly names)."""
+    if not os.path.exists(MEDIA_DIR):
+        return jsonify([])
+
+    course_keys = [
+        name for name in os.listdir(MEDIA_DIR)
+        if os.path.isdir(os.path.join(MEDIA_DIR, name))
     ]
+
+    courses = [COURSE_NAMES.get(key, key) for key in course_keys]
     return jsonify(courses)
 
 
 @app.route("/get_chapters", methods=["GET"])
 def get_chapters():
-    course = request.args.get("course")
-    if not course:
-        return jsonify({"error": "missing course"}), 400
+    """
+    Example: /get_chapters?course=History of Europe
+    Returns friendly chapter names.
+    """
+    course_name = request.args.get("course")
+    if not course_name:
+        return jsonify({"error": "Missing course"}), 400
 
-    path = os.path.join(MEDIA_ROOT, course.upper())
-    if not os.path.exists(path):
-        return jsonify({"error": "course not found"}), 404
+    # reverse map: friendly course name -> folder key
+    folder_key = None
+    for k, v in COURSE_NAMES.items():
+        if v == course_name:
+            folder_key = k
+            break
 
-    chapters = [
-        d for d in os.listdir(path)
-        if os.path.isdir(os.path.join(path, d))
+    if folder_key is None:
+        return jsonify({"error": "Unknown course"}), 404
+
+    course_path = os.path.join(MEDIA_DIR, folder_key)
+    if not os.path.exists(course_path):
+        return jsonify([])
+
+    chapter_keys = [
+        name for name in os.listdir(course_path)
+        if os.path.isdir(os.path.join(course_path, name))
     ]
-    return jsonify(chapters)
 
+    chapters = [CHAPTER_NAMES.get(folder_key, {}).get(ch, ch) for ch in chapter_keys]
+    return jsonify(chapters)
 
 @app.route("/get_question", methods=["GET"])
 def get_question():
