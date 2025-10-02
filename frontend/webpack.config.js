@@ -21,6 +21,10 @@ module.exports = {
         }
       },
       {
+        test: /\.css$/i,              // 👈 ADD THIS RULE
+        use: ['style-loader', 'css-loader'],
+      },
+      {
         test: /\.(png|jpe?g|gif|mp4|mp3)$/i,
         use: [
           {
