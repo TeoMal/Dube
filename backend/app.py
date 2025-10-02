@@ -30,28 +30,67 @@ COURSE_INFO = {
     "HISTORY": {
         "name": "Ιστορία της Ευρώπης",
         "logo": "history.jpeg",
-        "description": "Εξερευνήστε τα σημαντικότερα γεγονότα που διαμόρφωσαν την Ευρώπη από την Αναγέννηση έως σήμερα."
+        "description": "Εξερευνήστε τα σημαντικότερα γεγονότα που διαμόρφωσαν την Ευρώπη από την Αναγέννηση έως σήμερα.",
+        "editing": "false"
     },
     "PHYSICS": {
         "name": "Εισαγωγή στη Φυσική",
-        "logo": "physics_logo.png",
-        "description": "Μάθετε τις θεμελιώδεις αρχές της φυσικής μέσα από διαδραστικά μαθήματα και πειράματα."
+        "logo": "physics.jpeg",
+        "description": "Μάθετε τις θεμελιώδεις αρχές της φυσικής μέσα από διαδραστικά μαθήματα και πειράματα.",
+        "editing": "true"
+        
     }
 }
 
 CHAPTER_NAMES = {
     "HISTORY": {
-        "chapter1": "Αναγέννηση και Μεσαίωνας",
-        "chapter2": "Γαλλική Επανάσταση",
-        "chapter3": "Ευρώπη τον 19ο αιώνα",
-        "chapter4": "Σύγχρονη Ευρώπη"
+        "chapter1": {
+            "name": "Αναγέννηση και Μεσαίωνας",
+            "description": "Η Αναγέννηση ήταν μια περίοδος αναζωογόνησης της τέχνης, της επιστήμης και της λογοτεχνίας μετά τον Μεσαίωνα. Οι άνθρωποι επανέφεραν το ενδιαφέρον τους για τον άνθρωπο και την κλασική παιδεία.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
+        "chapter2": {
+            "name": "Γαλλική Επανάσταση",
+            "description": "Η Γαλλική Επανάσταση του 1789 αποτέλεσε σταθμό στην παγκόσμια ιστορία, φέρνοντας στο προσκήνιο έννοιες όπως η ελευθερία, η ισότητα και η αδελφοσύνη, και επηρέασε βαθιά την Ευρώπη.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
+        "chapter3": {
+            "name": "Ευρώπη τον 19ο αιώνα",
+            "description": "Ο 19ος αιώνας στην Ευρώπη χαρακτηρίστηκε από τη βιομηχανική επανάσταση, την άνοδο των εθνικών κρατών και σημαντικές κοινωνικές και πολιτικές αλλαγές.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
+        "chapter4": {
+            "name": "Σύγχρονη Ευρώπη",
+            "description": "Η σύγχρονη Ευρώπη συγκροτήθηκε μέσα από πολέμους, συνεργασίες και την πορεία προς την ενοποίηση, οδηγώντας στη δημιουργία της Ευρωπαϊκής Ένωσης.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
     },
     "PHYSICS": {
-        "chapter1": "Κίνημα",
-        "chapter2": "Δύναμη και Πίεση",
-        "chapter3": "Ενέργεια και Θερμότητα",
+        "chapter1": {
+            "name": "Κίνηση",
+            "description": "Η κίνηση είναι η αλλαγή της θέσης ενός σώματος με την πάροδο του χρόνου και αποτελεί θεμελιώδη έννοια της φυσικής.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
+        "chapter2": {
+            "name": "Δύναμη και Πίεση",
+            "description": "Η δύναμη προκαλεί μεταβολή στην κίνηση των σωμάτων, ενώ η πίεση είναι το μέτρο της δύναμης που ασκείται σε μια επιφάνεια.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
+        "chapter3": {
+            "name": "Ενέργεια και Θερμότητα",
+            "description": "Η ενέργεια είναι η ικανότητα ενός συστήματος να παράγει έργο, ενώ η θερμότητα αφορά τη μεταφορά ενέργειας λόγω διαφοράς θερμοκρασίας.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+        },
     }
 }
+
 
 MEDIA_DIR = os.path.join(app.root_path, "media")
 
@@ -81,18 +120,6 @@ def load_questions(course, chapter):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def calculate_completion_percentage(user, course_key):
-    """Calculate percentage of completed chapters for a course"""
-    if user not in user_profiles:
-        return 0
-    
-    completed = user_profiles[user]["completed_chapters"].get(course_key, [])
-    total_chapters = len(CHAPTER_NAMES.get(course_key, {}))
-    
-    if total_chapters == 0:
-        return 0
-    
-    return round((len(completed) / total_chapters) * 100, 1)
 
 def calculate_accuracy_stats(user):
     """Calculate overall and per-type accuracy statistics"""
@@ -167,6 +194,7 @@ def get_courses():
                 "description": COURSE_INFO[key]["description"],
                 "total_chapters": len(CHAPTER_NAMES.get(key, {})),
                 "chapters_completed": len(user_profiles[user]["completed_chapters"].get(key, [])),
+                "editing": COURSE_INFO[key].get("editing", "false")
             })
     
     return jsonify(courses)
@@ -176,7 +204,7 @@ def get_courses():
 def get_chapters():
     """
     Example: /get_chapters?course=Ιστορία της Ευρώπης&user=user1
-    Returns friendly chapter names with completion status.
+    Returns chapter info with completion status.
     """
     course_name = request.args.get("course")
     user = request.args.get("user", "user1")
@@ -210,11 +238,26 @@ def get_chapters():
     
     chapters = []
     for ch in chapter_keys:
-        chapters.append({
-            "id": ch,
-            "name": CHAPTER_NAMES.get(folder_key, {}).get(ch, ch),
-            "completed": ch in completed
-        })
+        chapter_info = CHAPTER_NAMES.get(folder_key, {}).get(ch, {})
+        if isinstance(chapter_info, dict):
+            chapters.append({
+                "id": ch,
+                "name": chapter_info.get("name", ch),
+                "description": chapter_info.get("description", ""),
+                "completed": ch in completed,
+                "questions_completed": chapter_info.get("questions_completed", 0),
+                "questions_correct": chapter_info.get("questions_correct", 0)
+            })
+        else:
+            # fallback if chapter is still a string
+            chapters.append({
+                "id": ch,
+                "name": chapter_info,
+                "description": "",
+                "completed": ch in completed,
+                "questions_completed": 0,
+                "questions_correct": 0
+            })
     
     return jsonify(chapters)
 
@@ -316,12 +359,10 @@ def mark_chapter_complete():
     if chapter not in user_profiles[user]["completed_chapters"][course]:
         user_profiles[user]["completed_chapters"][course].append(chapter)
     
-    completion = calculate_completion_percentage(user, course)
     
     return jsonify({
         "status": "success",
         "completed_chapters": user_profiles[user]["completed_chapters"][course],
-        "completion_percentage": completion
     })
 
 
@@ -341,7 +382,6 @@ def get_user_stats():
     for course_key in COURSE_INFO.keys():
         course_completion[course_key] = {
             "name": COURSE_INFO[course_key]["name"],
-            "completion_percentage": calculate_completion_percentage(user, course_key),
             "completed_chapters": profile["completed_chapters"].get(course_key, []),
             "total_chapters": len(CHAPTER_NAMES.get(course_key, {}))
         }

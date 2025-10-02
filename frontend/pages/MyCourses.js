@@ -50,6 +50,7 @@ export default function MyCourses() {
               to={`/my-courses/${encodeURIComponent(course)}`}
               className="text-decoration-none"
             >
+              <div classname="card-text text-center"> {course.editing === "true" ? <span className="badge bg-warning text-dark mb-2">Editor</span> : <span className="badge bg-warning text-dark mb-2">Participant</span> } </div>
               <div className="card shadow border-0 h-100">
                 <div className="card-body bg-primary text-white rounded d-flex flex-column align-items-center">
                   <h5 className="card-title">{course.name}</h5>
