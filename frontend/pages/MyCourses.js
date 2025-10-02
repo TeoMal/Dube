@@ -53,15 +53,21 @@ export default function MyCourses() {
               <div className="card shadow border-0 h-100">
                 <div className="card-body bg-primary text-white rounded d-flex flex-column align-items-center">
                   <h5 className="card-title">{course.name}</h5>
-                  {course.image && (
+                  {course.logo_url && (
                     <img
-                      src={course.image}
+                      src={course.logo_url}
                       alt={course.name}
                       className="img-fluid my-2"
                       style={{ maxHeight: "150px", objectFit: "cover" }}
                     />
                   )}
                   <p className="card-text text-center">{course.description}</p>
+                  {/* Display completion as fraction */}
+                  {course.total_chapters != null && course.chapters_completed != null && (
+                    <p className="mt-auto">
+                      Completion: {course.chapters_completed}/{course.total_chapters}
+                    </p>
+                  )}
                   <div className="fw-bold text-end w-100">→</div>
                 </div>
               </div>

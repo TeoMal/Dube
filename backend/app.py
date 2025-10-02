@@ -29,7 +29,7 @@ user_profiles = {"user1": make_default_user()}
 COURSE_INFO = {
     "HISTORY": {
         "name": "Ιστορία της Ευρώπης",
-        "logo": "history_logo.png",
+        "logo": "history.jpeg",
         "description": "Εξερευνήστε τα σημαντικότερα γεγονότα που διαμόρφωσαν την Ευρώπη από την Αναγέννηση έως σήμερα."
     },
     "PHYSICS": {
@@ -160,13 +160,13 @@ def get_courses():
     courses = []
     for key in course_keys:
         if key in COURSE_INFO:
-            completion = calculate_completion_percentage(user, key)
             courses.append({
                 "id": key,
                 "name": COURSE_INFO[key]["name"],
                 "logo_url": f"http://127.0.0.1:5000/icons/{COURSE_INFO[key]['logo']}",
                 "description": COURSE_INFO[key]["description"],
-                "completion_percentage": completion
+                "total_chapters": len(CHAPTER_NAMES.get(key, {})),
+                "chapters_completed": len(user_profiles[user]["completed_chapters"].get(key, [])),
             })
     
     return jsonify(courses)
