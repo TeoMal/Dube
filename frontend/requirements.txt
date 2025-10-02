@@ -1,1 +1,1 @@
-npm install react react-dom react-native react-scripts @babel/core @babel/preset-env @babel/preset-react babel-loader webpack webpack-cli webpack-dev-server style-loader css-loader file-loader url-loader
+npm install react react-dom react-native react-scripts @babel/core @babel/preset-env @babel/preset-react babel-loader webpack webpack-cli webpack-dev-server style-loader css-loader file-loader url-loader react-router-dom bootstrap file-loader --save-dev
