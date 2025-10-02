@@ -1,56 +1,42 @@
-import React, { useState } from "react";
+import React from "react";
+import { Link } from "react-router-dom";
 
-export default function CoursesPage() {
-  const [userQuestion, setUserQuestion] = useState("");
-  const [llmAnswer, setLlmAnswer] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!userQuestion.trim()) return;
-
-    try {
-      const url = `http://localhost:3000/genai/prompt?message=${encodeURIComponent(userQuestion)}`;
-      const response = await fetch(url);
-      const data = await response.text(); // LLM returns plain text
-      setLlmAnswer(data);
-    } catch (err) {
-      console.error("Error fetching LLM answer:", err);
-      setLlmAnswer("Σφάλμα κατά την κλήση της υπηρεσίας LLM.");
-    }
-  };
-
+export default function Courses() {
   return (
-    <div style={{ padding: "20px", maxWidth: "800px", margin: "auto" }}>
-      <h2>Course Chat Assistant</h2>
+        <div className="container text-center my-4">
+          <p className="text-muted">
+            Ready to continue learning or create something new?
+          </p>
 
-      <div style={{ marginBottom: "10px", display: "flex", gap: "10px" }}>
-        <input
-          type="text"
-          value={userQuestion}
-          onChange={(e) => setUserQuestion(e.target.value)}
-          placeholder="Πληκτρολογήστε την ερώτησή σας..."
-          style={{ flex: 1, padding: "8px" }}
-        />
-        <button onClick={handleSubmit} style={{ padding: "8px 16px" }}>
-          Ask
-        </button>
-      </div>
+          <div className="row justify-content-center mt-4">
+            <div className="col-md-5 mb-3">
+              <Link to="/courses" className="text-decoration-none">
+                <div className="card shadow border-0 h-100">
+                  <div className="card-body bg-success text-white rounded">
+                    <h5 className="card-title">📚 Participate in a Course</h5>
+                    <p className="card-text">
+                      Browse available courses and join lessons that match your interests.
+                    </p>
+                    <div className="fw-bold text-end">→</div>
+                  </div>
+                </div>
+              </Link>
+            </div>
 
-      {loading && <p>Loading...</p>}
-
-      {llmAnswer && (
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "10px",
-            border: "1px solid #ccc",
-            whiteSpace: "pre-wrap", // preserve line breaks
-          }}
-        >
-          <strong>Answer:</strong>
-          <p>{llmAnswer}</p>
+            <div className="col-md-5 mb-3">
+              <Link to="/create-course" className="text-decoration-none">
+                <div className="card shadow border-0 h-100">
+                  <div className="card-body bg-warning text-white rounded">
+                    <h5 className="card-title">📝 Create a Course</h5>
+                    <p className="card-text">
+                      Design new lessons, upload content, and manage your students.
+                    </p>
+                    <div className="fw-bold text-end">→</div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+      
         </div>
-      )}
-    </div>
-  );
-}
+        );
