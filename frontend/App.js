@@ -1,5 +1,6 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider  } from "./pages/AuthContext";
 
 import Navbar from "./components/Navbar";
 import Breadcrumbs from "./components/Breadcrumbs";
@@ -12,23 +13,30 @@ import Network from "./pages/Network";
 import Help from "./pages/Help";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import MyCourses from "./pages/MyCourses";
 
 export default function App() {
   return (
-    <Router>
-      <Navbar />
-      <Breadcrumbs />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/students" element={<Students />} />
-        <Route path="/educators" element={<Educators />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/network" element={<Network />} />
-        <Route path="/help" element={<Help />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Navbar />
+        <Breadcrumbs />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/educators" element={<Educators />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/network" element={<Network />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/my-courses" element={<MyCourses />} />
+          {/* <Route path="/courses" element={<Courses />} /> */}
+        </Routes>
+      </Router>
+
+    </AuthProvider>
+    
   );
 }
 
