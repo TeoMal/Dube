@@ -19,7 +19,7 @@ def make_default_user():
         "name": "George",
         "surname": "Papadopoulos",
         #"probs": {t: 1.0 / n for t in ALL_TYPES},
-        "probs": {"reading": 0.05, "video": 0.5, "sound": 0.45},
+        "probs": {"reading": 0.08, "video": 0.45, "sound": 0.47},
         "wrong_counts": {t: 0 for t in ALL_TYPES},
         "history": [],
         "completed_chapters": {}  # {"HISTORY": ["chapter1", "chapter2"], "PHYSICS": []}
