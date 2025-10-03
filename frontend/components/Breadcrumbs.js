@@ -21,7 +21,7 @@ export default function Breadcrumbs() {
             <span key={to}>
               {" / "}
               <Link to={to} className="text-decoration-none">
-                {capitalize(value)}
+                {capitalize(decodeURIComponent(value))}
               </Link>
             </span>
           );

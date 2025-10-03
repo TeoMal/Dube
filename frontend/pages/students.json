@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "Alice Johnson",
+    "probabilities": { "text": 50, "video": 30, "sound": 20 }
+  },
+  {
+    "id": 2,
+    "name": "Bob Smith",
+    "probabilities": { "text": 20, "video": 50, "sound": 30 }
+  },
+  {
+    "id": 3,
+    "name": "Charlie Brown",
+    "probabilities": { "text": 40, "video": 40, "sound": 20 }
+  }
+]

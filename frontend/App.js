@@ -15,6 +15,8 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import MyCourses from "./pages/MyCourses";
 import Footer from "./components/Footer";
+import CourseRouter from "./pages/CourseRouter";
+import ChapterPage from "./pages/ChapterPage";
 
 export default function App() {
   return (
@@ -32,7 +34,8 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/my-courses" element={<MyCourses />} />
-
+          <Route path="/my-courses/:courseName" element={<CourseRouter />} />
+          <Route path="/my-courses/:courseName/:chapterName" element={<ChapterPage />} />
           {/* <Route path="/courses" element={<Courses />} /> */}
         </Routes>
       </Router>
