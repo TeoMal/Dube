@@ -17,6 +17,8 @@ import MyCourses from "./pages/MyCourses";
 import Footer from "./components/Footer";
 import CourseRouter from "./pages/CourseRouter";
 import ChapterPage from "./pages/ChapterPage";
+import Profile from "./pages/Profile";
+import AddChapter from "./pages/AddChapter";
 
 export default function App() {
   return (
@@ -36,6 +38,9 @@ export default function App() {
           <Route path="/my-courses" element={<MyCourses />} />
           <Route path="/my-courses/:courseName" element={<CourseRouter />} />
           <Route path="/my-courses/:courseName/:chapterName" element={<ChapterPage />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/my-courses/:courseName/add-chapter" element={<AddChapter />} />
+
           {/* <Route path="/courses" element={<Courses />} /> */}
         </Routes>
       </Router>
