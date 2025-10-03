@@ -1,28 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function ChapterPage() {
   const { courseName, chapterName } = useParams();
   const decodedCourse = decodeURIComponent(courseName);
   const decodedChapter = decodeURIComponent(chapterName);
+  const navigate = useNavigate();
 
   const [steps, setSteps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [textContent, setTextContent] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [submittedAnswer, setSubmittedAnswer] = useState(null);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [lastMediaType, setLastMediaType] = useState(null);
+  const [chapterComplete, setChapterComplete] = useState(false);
 
-  // Fetch questions with all steps from backend
+  // Fetch questions with steps from backend
   useEffect(() => {
     fetch(
       `http://127.0.0.1:5000/get_questions?course=${encodeURIComponent(
         decodedCourse
-      )}&chapter=${encodeURIComponent(decodedChapter)}`
+      )}&chapter=${encodeURIComponent(decodedChapter)}&user=user1`
     )
       .then((res) => res.json())
       .then((data) => {
-        // Flatten all steps from all questions
         const allSteps = data.flatMap((q) =>
           q.steps.map((step) => ({ ...step, questionId: q.id }))
         );
@@ -40,6 +45,11 @@ export default function ChapterPage() {
     if (!steps.length) return;
 
     const step = steps[currentStep];
+
+    if (["reading", "video", "sound"].includes(step.type)) {
+      setLastMediaType(step.type);
+    }
+
     if (step.type === "reading") {
       fetch(step.file)
         .then((res) => res.text())
@@ -51,7 +61,9 @@ export default function ChapterPage() {
     } else {
       setTextContent("");
     }
+
     setSelectedAnswer(null);
+    setSubmittedAnswer(null);
   }, [currentStep, steps]);
 
   if (loading) {
@@ -60,6 +72,27 @@ export default function ChapterPage() {
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
+      </div>
+    );
+  }
+
+  if (chapterComplete) {
+    return (
+      <div className="container text-center my-5">
+        <h2 className="fw-bold" style={{ color: "#4a274f" }}>
+          ✅ Chapter Complete!
+        </h2>
+        <p className="text-muted">
+          You have finished the chapter: {decodedChapter}.
+        </p>
+        <button
+          className="btn btn-primary mt-3"
+          onClick={() =>
+            navigate(`/my-courses/${encodeURIComponent(decodedCourse)}`)
+          }
+        >
+          Finish
+        </button>
       </div>
     );
   }
@@ -74,14 +107,45 @@ export default function ChapterPage() {
 
   const step = steps[currentStep];
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+  const handleAnswerSelect = (answer) => {
+    if (!submittedAnswer) {
+      setSelectedAnswer(answer);
     }
   };
 
-  const handleAnswer = (answer) => {
-    setSelectedAnswer(answer);
+  const handleSubmitAnswer = () => {
+    if (!selectedAnswer) return;
+
+    setSubmittedAnswer(selectedAnswer);
+    const correct = selectedAnswer === step.correct_answer;
+
+    if (correct) setCorrectCount((prev) => prev + 1);
+    else setWrongCount((prev) => prev + 1);
+  };
+
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      const percentage =
+        correctCount + wrongCount > 0
+          ? correctCount / (correctCount + wrongCount)
+          : 1;
+
+      fetch("http://127.0.0.1:5000/mark_chapter_complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: "user1",
+          type: lastMediaType,
+          percentage: percentage,
+          course: decodedCourse,
+          chapter: decodedChapter,
+        }),
+      })
+        .then(() => setChapterComplete(true))
+        .catch((err) => console.error(err));
+    }
   };
 
   return (
@@ -91,33 +155,18 @@ export default function ChapterPage() {
       </h2>
 
       <div className="card p-4 mb-3">
-        {step.type === "reading" && (
-          <div>
-            <h5>Reading</h5>
-            <p>{textContent}</p>
-          </div>
-        )}
+        {step.type === "reading" && <p>{textContent}</p>}
 
         {step.type === "video" && (
-          <div>
-            <h5>Video</h5>
-            <video
-              src={step.file}
-              controls
-              style={{ width: "100%", maxHeight: "500px" }}
-            />
-          </div>
+          <video src={step.file} controls style={{ width: "100%" }} />
         )}
 
         {step.type === "image" && (
-          <div>
-            <h5>Image</h5>
-            <img
-              src={step.file}
-              alt="Chapter media"
-              style={{ width: "100%", maxHeight: "500px" }}
-            />
-          </div>
+          <img src={step.file} alt="media" style={{ width: "100%" }} />
+        )}
+
+        {step.type === "sound" && (
+          <audio src={step.file} controls style={{ width: "100%" }} />
         )}
 
         {step.type === "question" && (
@@ -129,16 +178,25 @@ export default function ChapterPage() {
                   key={idx}
                   className={`list-group-item list-group-item-action ${
                     selectedAnswer === opt ? "active" : ""
-                  }`}
-                  onClick={() => handleAnswer(opt)}
+                  } ${submittedAnswer ? "disabled" : ""}`}
+                  onClick={() => handleAnswerSelect(opt)}
+                  disabled={!!submittedAnswer}
                 >
                   {opt}
                 </button>
               ))}
             </div>
-            {selectedAnswer && (
+            {selectedAnswer && !submittedAnswer && (
+              <button
+                className="btn btn-primary mt-3"
+                onClick={handleSubmitAnswer}
+              >
+                Submit Answer
+              </button>
+            )}
+            {submittedAnswer && (
               <div className="mt-3">
-                {selectedAnswer === step.correct_answer ? (
+                {submittedAnswer === step.correct_answer ? (
                   <div className="alert alert-success">Correct!</div>
                 ) : (
                   <div className="alert alert-danger">
@@ -152,16 +210,15 @@ export default function ChapterPage() {
       </div>
 
       <div className="text-end">
-        {currentStep < steps.length - 1 ? (
-          <button className="btn btn-primary" onClick={handleNext}>
-            Next
-          </button>
-        ) : (
-          <div className="text-center text-success fw-bold">
-            ✅ End of chapter!
-          </div>
-        )}
+        <button
+          className="btn btn-primary"
+          onClick={handleNext}
+          disabled={step.type === "question" && !submittedAnswer}
+        >
+          {currentStep < steps.length - 1 ? "Next" : "Finish Chapter"}
+        </button>
       </div>
+
     </div>
   );
 }

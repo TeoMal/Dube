@@ -18,7 +18,8 @@ def make_default_user():
     return {
         "name": "George",
         "surname": "Papadopoulos",
-        "probs": {t: 1.0 / n for t in ALL_TYPES},
+        #"probs": {t: 1.0 / n for t in ALL_TYPES},
+        "probs": {"reading": 0.05, "video": 0.5, "sound": 0.45},
         "wrong_counts": {t: 0 for t in ALL_TYPES},
         "history": [],
         "completed_chapters": {}  # {"HISTORY": ["chapter1", "chapter2"], "PHYSICS": []}
@@ -284,11 +285,24 @@ def detect_media_type(filename):
 
 @app.route("/get_questions", methods=["GET"])
 def get_questions():
+    user = request.args.get("user", "user1")
     course_name = request.args.get("course")
     chapter_name = request.args.get("chapter")
 
     if not course_name or not chapter_name:
         return jsonify({"error": "Missing course or chapter"}), 400
+
+    # Ensure user exists
+    if user not in user_profiles:
+        user_profiles[user] = make_default_user()
+    profile = user_profiles[user]
+
+    # Determine preferred media type (highest probability)
+    probs = profile.get("probs", {})
+    if not probs:
+        preferred_type = "reading"  # default fallback
+    else:
+        preferred_type = max(probs, key=probs.get)
 
     # Reverse map: Greek course name -> folder key
     folder_key = None
@@ -296,7 +310,6 @@ def get_questions():
         if value["name"] == course_name:
             folder_key = key
             break
-
     if folder_key is None:
         return jsonify({"error": "Unknown course"}), 404
 
@@ -307,20 +320,25 @@ def get_questions():
             if ch_value["name"] == chapter_name:
                 chapter_key = ch_key
                 break
-
     if chapter_key is None:
         return jsonify({"error": "Unknown chapter"}), 404
 
     # Load questions.json
     questions = load_questions(folder_key, chapter_key)
 
-    # Convert media files to full backend URLs
+    # Filter steps to only include the preferred media type
     for q in questions:
+        filtered_steps = []
         for step in q.get("steps", []):
-            if step.get("type") in ["reading", "video", "image"] and step.get("file"):
-                step["file"] = f"http://127.0.0.1:5000/media/{folder_key}/{chapter_key}/{step['file']}"
+            step_type = step.get("type")
+            if step_type == preferred_type or step_type == "question":
+                # Update media URLs if applicable
+                if step_type in ["reading", "video", "sound"] and step.get("file"):
+                    step["file"] = f"http://127.0.0.1:5000/media/{folder_key}/{chapter_key}/{step['file']}"
+                filtered_steps.append(step)
+        q["steps"] = filtered_steps
 
-    print(f"Serving {len(questions)} questions for {course_name} - {chapter_name}")
+    print(f"Serving {len(questions)} questions for {course_name} - {chapter_name} using preferred media: {preferred_type}")
     return jsonify(questions)
 
 
@@ -383,36 +401,88 @@ def check_answer():
 
 
 
+from urllib.parse import unquote
+
+from urllib.parse import unquote
+
 @app.route("/mark_chapter_complete", methods=["POST"])
 def mark_chapter_complete():
-    """Mark a chapter as completed for a user"""
+    """Mark a chapter as completed for a user and update learning probabilities."""
     data = request.get_json()
     user = data.get("user", "user1")
-    course = data.get("course")
-    chapter = data.get("chapter")
-    
-    if not course or not chapter:
+    course_name = data.get("course")
+    chapter_name = data.get("chapter")
+    step_type = data.get("type")
+    percentage = data.get("percentage", 0)  # must be 0-1
+
+    if not course_name or not chapter_name:
         return jsonify({"error": "Missing course or chapter"}), 400
-    
+
+    # Decode URL-encoded names
+    decoded_course = unquote(course_name)
+    decoded_chapter = unquote(chapter_name)
+
+    # Reverse map: Greek course name -> folder key
+    folder_key = None
+    for key, value in COURSE_INFO.items():
+        if value["name"] == decoded_course:
+            folder_key = key
+            break
+    if folder_key is None:
+        return jsonify({"error": "Unknown course"}), 404
+
+    # Reverse map: Greek chapter name -> chapter folder key
+    chapter_key = None
+    if folder_key in CHAPTER_NAMES:
+        for ch_key, ch_value in CHAPTER_NAMES[folder_key].items():
+            if ch_value["name"] == decoded_chapter:
+                chapter_key = ch_key
+                break
+    if chapter_key is None:
+        return jsonify({"error": "Unknown chapter"}), 404
+
     if user not in user_profiles:
         user_profiles[user] = make_default_user()
-    
-    if course not in user_profiles[user]["completed_chapters"]:
-        user_profiles[user]["completed_chapters"][course] = []
-    
-    if chapter not in user_profiles[user]["completed_chapters"][course]:
-        user_profiles[user]["completed_chapters"][course].append(chapter)
 
-    # 🔥 update global CHAPTER_NAMES to mark completed
-    if course in CHAPTER_NAMES and chapter in CHAPTER_NAMES[course]:
-        CHAPTER_NAMES[course][chapter]["completed"] = True
-    
+    # Mark chapter as completed
+    if folder_key not in user_profiles[user]["completed_chapters"]:
+        user_profiles[user]["completed_chapters"][folder_key] = []
+    if chapter_key not in user_profiles[user]["completed_chapters"][folder_key]:
+        user_profiles[user]["completed_chapters"][folder_key].append(chapter_key)
+
+    # Update global CHAPTER_NAMES
+    if folder_key in CHAPTER_NAMES and chapter_key in CHAPTER_NAMES[folder_key]:
+        CHAPTER_NAMES[folder_key][chapter_key]["completed"] = True
+
+    # ----- Update learning probabilities based on rule -----
+    print(step_type, percentage)
+    if step_type in user_profiles[user]["probs"]:
+        probs = user_profiles[user]["probs"].copy()
+        if percentage > 0.6:
+            probs[step_type] += 0.1
+        elif percentage < 0.5:
+            probs[step_type] -= 0.1
+            if probs[step_type] < 0:
+                probs[step_type] = 0.0
+        # else: between 0.5-0.6 do nothing
+
+        # Normalize probabilities
+        total = sum(probs.values())
+        if total <= 0:
+            n = len(probs)
+            probs = {k: 1.0 / n for k in probs}
+        else:
+            probs = {k: v / total for k, v in probs.items()}
+
+        user_profiles[user]["probs"] = probs
+
+    print(f'New probs for {user}: {user_profiles[user]["probs"]}')
     return jsonify({
         "status": "success",
-        "completed_chapters": user_profiles[user]["completed_chapters"][course],
-        "chapter_stats": CHAPTER_NAMES[course][chapter]
+        "completed_chapters": user_profiles[user]["completed_chapters"][folder_key],
+        "chapter_stats": CHAPTER_NAMES[folder_key][chapter_key],
+        "updated_probs": user_profiles[user]["probs"]
     })
-
 
 @app.route("/get_user_stats", methods=["GET"])
 def get_user_stats():
