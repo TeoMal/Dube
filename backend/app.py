@@ -5,17 +5,19 @@ import os
 import json
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 MEDIA_ROOT = os.path.join(app.root_path, "media")
 ICONS_ROOT = os.path.join(app.root_path, "icons")
 
 # ----- USER PROFILES -----
-ALL_TYPES = ["reading", "video", "graph", "sound"]
+ALL_TYPES = ["reading", "video", "sound"]
 
 def make_default_user():
     n = len(ALL_TYPES)
     return {
+        "name": "George",
+        "surname": "Papadopoulos",
         "probs": {t: 1.0 / n for t in ALL_TYPES},
         "wrong_counts": {t: 0 for t in ALL_TYPES},
         "history": [],
@@ -45,28 +47,32 @@ COURSE_INFO = {
 CHAPTER_NAMES = {
     "HISTORY": {
         "chapter1": {
-            "name": "Αναγέννηση και Μεσαίωνας",
-            "description": "Η Αναγέννηση ήταν μια περίοδος αναζωογόνησης της τέχνης, της επιστήμης και της λογοτεχνίας μετά τον Μεσαίωνα. Οι άνθρωποι επανέφεραν το ενδιαφέρον τους για τον άνθρωπο και την κλασική παιδεία.",
-            "questions_completed": 0,
-            "questions_correct": 0,
-        },
-        "chapter2": {
             "name": "Γαλλική Επανάσταση",
             "description": "Η Γαλλική Επανάσταση του 1789 αποτέλεσε σταθμό στην παγκόσμια ιστορία, φέρνοντας στο προσκήνιο έννοιες όπως η ελευθερία, η ισότητα και η αδελφοσύνη, και επηρέασε βαθιά την Ευρώπη.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
+        },
+        "chapter2": {
+            "name": "Αναγέννηση και Μεσαίωνας",
+            "description": "Η Αναγέννηση ήταν μια περίοδος αναζωογόνησης της τέχνης, της επιστήμης και της λογοτεχνίας μετά τον Μεσαίωνα. Οι άνθρωποι επανέφεραν το ενδιαφέρον τους για τον άνθρωπο και την κλασική παιδεία.",
+            "questions_completed": 0,
+            "questions_correct": 0,
+            "completed": False
         },
         "chapter3": {
             "name": "Ευρώπη τον 19ο αιώνα",
             "description": "Ο 19ος αιώνας στην Ευρώπη χαρακτηρίστηκε από τη βιομηχανική επανάσταση, την άνοδο των εθνικών κρατών και σημαντικές κοινωνικές και πολιτικές αλλαγές.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
         },
         "chapter4": {
             "name": "Σύγχρονη Ευρώπη",
             "description": "Η σύγχρονη Ευρώπη συγκροτήθηκε μέσα από πολέμους, συνεργασίες και την πορεία προς την ενοποίηση, οδηγώντας στη δημιουργία της Ευρωπαϊκής Ένωσης.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
         },
     },
     "PHYSICS": {
@@ -75,18 +81,22 @@ CHAPTER_NAMES = {
             "description": "Η κίνηση είναι η αλλαγή της θέσης ενός σώματος με την πάροδο του χρόνου και αποτελεί θεμελιώδη έννοια της φυσικής.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
         },
         "chapter2": {
             "name": "Δύναμη και Πίεση",
             "description": "Η δύναμη προκαλεί μεταβολή στην κίνηση των σωμάτων, ενώ η πίεση είναι το μέτρο της δύναμης που ασκείται σε μια επιφάνεια.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
         },
         "chapter3": {
             "name": "Ενέργεια και Θερμότητα",
             "description": "Η ενέργεια είναι η ικανότητα ενός συστήματος να παράγει έργο, ενώ η θερμότητα αφορά τη μεταφορά ενέργειας λόγω διαφοράς θερμοκρασίας.",
             "questions_completed": 0,
             "questions_correct": 0,
+            "completed": False
+            
         },
     }
 }
@@ -261,37 +271,60 @@ def get_chapters():
     
     return jsonify(chapters)
 
+def detect_media_type(filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".txt":
+        return "reading"
+    elif ext in [".mp4", ".avi", ".mov"]:
+        return "video"
+    elif ext in [".mp3", ".wav"]:
+        return "sound"
+    return "unknown"
 
-@app.route("/get_question", methods=["GET"])
-def get_question():
-    user = request.args.get("user", "user1")
-    course = request.args.get("course", "HISTORY")
-    chapter = request.args.get("chapter", "chapter1")
 
-    if user not in user_profiles:
-        user_profiles[user] = make_default_user()
+@app.route("/get_questions", methods=["GET"])
+def get_questions():
+    course_name = request.args.get("course")
+    chapter_name = request.args.get("chapter")
 
-    profile = user_profiles[user]
+    if not course_name or not chapter_name:
+        return jsonify({"error": "Missing course or chapter"}), 400
 
-    q_type = weighted_choice(normalize_probs(profile["probs"]))
-    questions = load_questions(course, chapter)
-    if not questions:
-        return jsonify({"error": "No questions found"}), 404
+    # Reverse map: Greek course name -> folder key
+    folder_key = None
+    for key, value in COURSE_INFO.items():
+        if value["name"] == course_name:
+            folder_key = key
+            break
 
-    filtered = [q for q in questions if q["type"] == q_type]
-    if not filtered:
-        filtered = questions
+    if folder_key is None:
+        return jsonify({"error": "Unknown course"}), 404
 
-    question = random.choice(filtered)
+    # Reverse map: Greek chapter name -> chapter folder key
+    chapter_key = None
+    if folder_key in CHAPTER_NAMES:
+        for ch_key, ch_value in CHAPTER_NAMES[folder_key].items():
+            if ch_value["name"] == chapter_name:
+                chapter_key = ch_key
+                break
 
-    return jsonify({
-        "id": question["id"],
-        "type": question["type"],
-        "question": question["question"],
-        "answers": question["answers"],
-        "media_url": f"http://127.0.0.1:5000/media/{course}/{chapter}/{question['media']}"
-    })
+    if chapter_key is None:
+        return jsonify({"error": "Unknown chapter"}), 404
 
+    # Load questions.json
+    questions = load_questions(folder_key, chapter_key)
+
+    # Convert media files to full backend URLs
+    for q in questions:
+        for step in q.get("steps", []):
+            if step.get("type") in ["reading", "video", "image"] and step.get("file"):
+                step["file"] = f"http://127.0.0.1:5000/media/{folder_key}/{chapter_key}/{step['file']}"
+
+    print(f"Serving {len(questions)} questions for {course_name} - {chapter_name}")
+    return jsonify(questions)
+
+
+    
 
 @app.route("/check_answer", methods=["POST"])
 def check_answer():
@@ -313,6 +346,7 @@ def check_answer():
     correct = (chosen_answer == question["correct_answer"])
     q_type = question["type"]
 
+    # update history
     entry = {
         "qid": qid,
         "chosen_answer": chosen_answer,
@@ -323,6 +357,7 @@ def check_answer():
     }
     user_profiles[user]["history"].append(entry)
 
+    # update per-type learning stats
     if not correct:
         user_profiles[user]["wrong_counts"][q_type] += 1
     else:
@@ -332,11 +367,20 @@ def check_answer():
         probs = normalize_probs(probs)
         user_profiles[user]["probs"] = probs
 
+    # 🔥 update chapter stats
+    if course in CHAPTER_NAMES and chapter in CHAPTER_NAMES[course]:
+        ch_info = CHAPTER_NAMES[course][chapter]
+        ch_info["questions_completed"] = ch_info.get("questions_completed", 0) + 1
+        if correct:
+            ch_info["questions_correct"] = ch_info.get("questions_correct", 0) + 1
+
     return jsonify({
         "correct": correct,
         "correct_answer": question["correct_answer"],
-        "new_profile": user_profiles[user]["probs"]
+        "new_profile": user_profiles[user]["probs"],
+        "chapter_stats": CHAPTER_NAMES[course][chapter]
     })
+
 
 
 @app.route("/mark_chapter_complete", methods=["POST"])
@@ -358,11 +402,15 @@ def mark_chapter_complete():
     
     if chapter not in user_profiles[user]["completed_chapters"][course]:
         user_profiles[user]["completed_chapters"][course].append(chapter)
-    
+
+    # 🔥 update global CHAPTER_NAMES to mark completed
+    if course in CHAPTER_NAMES and chapter in CHAPTER_NAMES[course]:
+        CHAPTER_NAMES[course][chapter]["completed"] = True
     
     return jsonify({
         "status": "success",
         "completed_chapters": user_profiles[user]["completed_chapters"][course],
+        "chapter_stats": CHAPTER_NAMES[course][chapter]
     })
 
 
@@ -398,8 +446,9 @@ def get_user_stats():
 @app.route("/update_profile", methods=["POST"])
 def update_profile():
     """
-    Provide a full profile update (replace). Accepts:
-    { "user": "user1", "percentages": {"reading":80,"video":10,"graph":5,"sound":5} }
+    Provide a full profile update (replace).
+    Accepts:
+    { "user": "user1", "percentages": {"reading":80,"video":10,"sound":5} }
     """
     data = request.get_json()
     user = data.get("user")
@@ -415,9 +464,15 @@ def update_profile():
     if user not in user_profiles:
         user_profiles[user] = make_default_user()
 
+    # 🔥 replace probabilities but keep stats intact
     user_profiles[user]["probs"] = probs
-    return jsonify({"status": "updated", "probs": probs})
 
+    return jsonify({
+        "status": "updated",
+        "probs": probs,
+        "stats": calculate_accuracy_stats(user),
+        "completed_chapters": user_profiles[user]["completed_chapters"]
+    })
 
 @app.route("/media/<course>/<chapter>/<path:filename>")
 def serve_media(course, chapter, filename):
