@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import DubeLogo from "../public/Dube_logo.png"; 
 import { Navbar as BSNavbar, Nav, Dropdown, Container } from "react-bootstrap";
@@ -8,7 +8,12 @@ import { AuthContext } from "../pages/AuthContext";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate(); // hook to navigate programmatically
 
+  const handleLogout = () => {
+    logout();          // update auth state
+    navigate("/"); // navigate to /home
+  };
   return (
     <BSNavbar bg="white" expand="lg" className="shadow-sm px-4">
       
@@ -42,7 +47,7 @@ export default function Navbar() {
                 <Dropdown.Item as={Link} to="/my-courses">My Courses</Dropdown.Item>
                 <Dropdown.Item as={Link} to="/settings">Settings</Dropdown.Item>
                 <Dropdown.Divider />
-                <Dropdown.Item onClick={logout}>Log Out</Dropdown.Item>
+                <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           )}
